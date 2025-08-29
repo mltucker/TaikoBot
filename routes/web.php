@@ -3,6 +3,7 @@
 use App\Http\Controllers\CourseController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\LessonController;
+use App\Http\Controllers\SwappityController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserSettingsController;
 use Illuminate\Support\Facades\Artisan;
@@ -84,6 +85,9 @@ Route::middleware([
     Route::post('lessons/{lesson}/set-late', [LessonController::class, 'setLate'])->name('lessons.setLate');
     Route::post('lessons/{lesson}/set-noshow', [LessonController::class, 'setNoShow'])->name('lessons.setNoShow');
     Route::resource('lessons', LessonController::class);
+
+    Route::get('/swappity', [SwappityController::class, 'index'])->name('swappity.index');
+    Route::put('/swappity', [SwappityController::class, 'update'])->name('swappity.update');
 
     Route::put('/user/settings', [UserSettingsController::class, 'update'])->name('user-settings.update');
 });
