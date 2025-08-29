@@ -5,6 +5,7 @@ import PageContent from '@/Components/PageContent.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import { useForm } from '@inertiajs/vue3';
+import { reactive } from 'vue';
 
 const props = defineProps({
     lessons: Array,
@@ -12,20 +13,49 @@ const props = defineProps({
     matrix: Object,
 });
 
-// Initialize assignments from matrix data
-const initialAssignments = {};
+// Track initial state
+const initialState = {};
+const currentState = reactive({});
+
 props.lessons.forEach(lesson => {
-    initialAssignments[lesson.id] = {};
+    const teacherIds = props.matrix[lesson.id].teachers;
+    initialState[lesson.id] = [...teacherIds];
+    currentState[lesson.id] = {};
+
     props.teachers.forEach(teacher => {
-        initialAssignments[lesson.id][teacher.id] = props.matrix[lesson.id].teachers.includes(teacher.id);
+        currentState[lesson.id][teacher.id] = teacherIds.includes(teacher.id);
     });
 });
 
 const form = useForm({
-    assignments: initialAssignments,
+    changes: [],
 });
 
 function submit() {
+    const changes = [];
+
+    props.lessons.forEach(lesson => {
+        const currentTeacherIds = props.teachers
+            .filter(teacher => currentState[lesson.id][teacher.id])
+            .map(teacher => teacher.id);
+
+        const initialTeacherIds = initialState[lesson.id];
+
+        // Check if this lesson's assignments have changed
+        const hasChanged =
+            currentTeacherIds.length !== initialTeacherIds.length ||
+            !currentTeacherIds.every(id => initialTeacherIds.includes(id)) ||
+            !initialTeacherIds.every(id => currentTeacherIds.includes(id));
+
+        if (hasChanged) {
+            changes.push({
+                lessonId: lesson.id,
+                teacherIds: currentTeacherIds,
+            });
+        }
+    });
+
+    form.changes = changes;
     form.put(route('swappity.update'));
 }
 
@@ -102,7 +132,7 @@ function formatDateTime(start, finish) {
                                         class="border border-gray-300 dark:border-gray-600 px-2 py-2 text-center">
                                         <input
                                             type="checkbox"
-                                            v-model="form.assignments[lesson.id][teacher.id]"
+                                            v-model="currentState[lesson.id][teacher.id]"
                                             class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800"
                                         />
                                     </td>

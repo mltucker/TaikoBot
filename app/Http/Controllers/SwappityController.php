@@ -53,42 +53,54 @@ class SwappityController extends Controller
     }
 
     /**
-     * Update teacher assignments.
+     * Update teacher assignments based on changes only.
      */
     public function update(Request $request): RedirectResponse
     {
         Gate::authorize('edit-courses');
 
         $validated = $request->validate([
-            'assignments' => 'required|array',
-            'assignments.*' => 'array',
-            'assignments.*.*' => 'boolean',
+            'changes' => 'required|array',
+            'changes.*.lessonId' => 'required|integer',
+            'changes.*.teacherIds' => 'required|array',
+            'changes.*.teacherIds.*' => 'integer',
         ]);
 
-        foreach ($validated['assignments'] as $lessonId => $teacherAssignments) {
-            $lesson = Lesson::findOrFail($lessonId);
+        foreach ($validated['changes'] as $change) {
+            $lesson = Lesson::findOrFail($change['lessonId']);
+            $newTeacherIds = $change['teacherIds'];
 
-            // Get current teachers
+            // Get current teachers for this lesson
             $currentTeachers = $lesson->participants()
                 ->wherePivot('participation', LessonParticipationEnum::TEACHER->value)
                 ->get();
 
-            // Remove all current teachers
-            foreach ($currentTeachers as $currentTeacher) {
-                if ($currentTeacher->hasSignedUpToCourse($lesson->course)) {
-                    $lesson->participants()->updateExistingPivot($currentTeacher, [
-                        'participation' => LessonParticipationEnum::SIGNED_OUT->value,
-                    ]);
-                } else {
-                    $lesson->participants()->detach($currentTeacher);
+            $currentTeacherIds = $currentTeachers->pluck('id')->toArray();
+
+            // Find teachers to remove
+            $teachersToRemove = array_diff($currentTeacherIds, $newTeacherIds);
+
+            // Find teachers to add
+            $teachersToAdd = array_diff($newTeacherIds, $currentTeacherIds);
+
+            // Remove teachers
+            foreach ($teachersToRemove as $teacherId) {
+                $teacher = $currentTeachers->find($teacherId);
+                if ($teacher) {
+                    if ($teacher->hasSignedUpToCourse($lesson->course)) {
+                        $lesson->participants()->updateExistingPivot($teacher, [
+                            'participation' => LessonParticipationEnum::SIGNED_OUT->value,
+                        ]);
+                    } else {
+                        $lesson->participants()->detach($teacher);
+                    }
                 }
             }
 
             // Add new teachers
-            foreach ($teacherAssignments as $teacherId => $isAssigned) {
-                if ($isAssigned) {
-                    $teacher = User::findOrFail($teacherId);
-
+            foreach ($teachersToAdd as $teacherId) {
+                $teacher = User::find($teacherId);
+                if ($teacher) {
                     if ($teacher->hasSignedInToLesson($lesson)) {
                         $lesson->participants()->updateExistingPivot($teacher, [
                             'participation' => LessonParticipationEnum::TEACHER->value,
