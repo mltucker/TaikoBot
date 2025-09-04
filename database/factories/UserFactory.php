@@ -46,4 +46,16 @@ class UserFactory extends Factory
             ];
         });
     }
+
+    /**
+     * Indicate that the user should have a personal team.
+     */
+    public function withPersonalTeam(): static
+    {
+        return $this->has(
+            Team::factory()->state(function (array $attributes, $user) {
+                return ['name' => $user['first_name']."'s Team", 'user_id' => $user['id'], 'personal_team' => true];
+            })
+        );
+    }
 }
