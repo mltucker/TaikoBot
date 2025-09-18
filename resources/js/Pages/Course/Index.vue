@@ -9,6 +9,8 @@ import { Link, router } from '@inertiajs/vue3';
 import { computed } from 'vue';
 import { formatDate } from '@/utils';
 
+import { PencilSquareIcon, TrashIcon, PlusIcon } from "@heroicons/vue/24/outline";
+
 const props = defineProps({ courses: Object });
 
 // Partition courses into running/upcoming/past
@@ -53,8 +55,12 @@ const courseInfo = computed(() => {
 });
 
 function showDates(course) {
-    const startDate = course.first_lesson?.start && formatDate(course.first_lesson.start);
-    const lastDate = course.last_lesson?.finish && formatDate(course.last_lesson.finish);
+    let startDate = course.first_lesson?.start && formatDate(course.first_lesson.start);
+    let lastDate = course.last_lesson?.finish && formatDate(course.last_lesson.finish);
+
+    if (startDate && lastDate && startDate.slice(-4) === lastDate.slice(-4)) {
+        startDate = startDate.slice(0, -5);
+    }
 
     if (startDate && startDate !== lastDate) {
         return `${startDate} - ${lastDate}`;
@@ -75,35 +81,51 @@ function destroy(id, title) {
 <template>
     <AppLayout title="Courses">
         <template #header>
-            <h2 class="font-semibold text-xl leading-tight">
-                Courses
-            </h2>
+            <div class="flex flex-row">
+                <h2 class="font-semibold text-xl leading-tight">
+                    Courses
+                </h2>
+
+                <div class="flex-1" />
+
+                <Link :href="route('courses.create')">
+                    <PrimaryButton small class=""><PlusIcon class="w-4 h-4 mr-1" /> Add Course</PrimaryButton>
+                </Link>
+            </div>
         </template>
 
         <PageContent>
             <template v-for="info in courseInfo" :key="info.title">
                 <Box v-if="info.courses.value.length">
-                <h2 class="font-semibold text-xl mb-4">{{ info.title }} </h2>
+                <h2 class="font-semibold text-base md:text-xl">{{ info.title }} </h2>
                 <table>
                     <thead>
                         <tr>
-                            <th class="px-2 text-left">Name</th>
-                            <th class="px-2 text-left">Participants</th>
-                            <th class="px-2 text-left">Dates</th>
+                            <th class="px-2 text-left text-xs md:text-base">Name</th>
+                            <th class="px-2 text-left text-xs md:text-base">Occ.</th>
+                            <th class="px-2 text-left text-xs md:text-base">Dates</th>
                             <th class="px-2 w-full"></th>
                         </tr>
                     </thead>
                     <tbody>
                         <tr v-for="course in info.courses.value" :key="course.id">
-                            <td class="px-2 whitespace-nowrap">{{ course.name }}</td>
-                            <td class="px-2">{{ course.participants_count }} / {{ course.capacity }}</td>
-                            <td class="px-2 whitespace-nowrap text-xs">{{ showDates(course) }}</td>
-                            <td class="px-2">
-                                <div class="flex flex-row items-center gap-2">
-                                <Link :href="route('courses.edit', course.id)">
-                                    <SecondaryButton small>Edit</SecondaryButton>
+                            <td class="px-2 text-xs md:text-base max-w-[calc(100vw-273px)] truncate">
+                                <Link :href="route('courses.show', course.id)">
+                                    {{ course.name }}
                                 </Link>
-                                <DangerButton small @click="destroy(course.id, course.name)">Delete</DangerButton>
+                            </td>
+                            <td class="px-2 text-xs md:text-base whitespace-nowrap">{{ course.participants_count }}/{{ course.capacity }}</td>
+                            <td class="px-2 whitespace-nowrap text-xs md:text-base">{{ showDates(course) }}</td>
+                            <td class="px-2">
+                                <div class="flex flex-row items-center gap-1">
+                                <Link :href="route('courses.edit', course.id)" class="leading-none">
+                                    <SecondaryButton small>
+                                        <PencilSquareIcon class="w-4 h-4" />
+                                    </SecondaryButton>
+                                </Link>
+                                <DangerButton small @click="destroy(course.id, course.name)">
+                                    <TrashIcon class="w-4 h-4" />
+                                </DangerButton>
                                 </div>
                             </td>
                         </tr>
@@ -115,13 +137,6 @@ function destroy(id, title) {
             <Box v-if="!courses.length">
                 <p>No Courses available</p>
             </Box>
-
-            <Box>
-                <Link :href="route('courses.create')">
-                    <PrimaryButton class="mb-2">Add Course</PrimaryButton>
-                </Link>
-            </Box>
-
         </PageContent>
     </AppLayout>
 </template>
