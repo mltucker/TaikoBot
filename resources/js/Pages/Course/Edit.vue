@@ -11,6 +11,7 @@ import DangerButton from '@/Components/DangerButton.vue';
 import DialogModal from '@/Components/DialogModal.vue';
 import { Link, useForm, router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
+import { PlusIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps({ course: Object, teams: Object, compCourses: Array, compCoursesSelected: Array, teachers: Array });
 const page = usePage();
@@ -279,26 +280,33 @@ function goBack() {
         <!-- Compensations List -->
         <Box>
             <h1 class="font-semibold text-xl mb-2 mt-3">Compensation Possibilities</h1>
-            <select v-model="newCompensation"
-                class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800">
-                <option value="" disabled>--- Select a Compensation Class ---</option>
-                <option v-for="compCourse in compCourses" :key="compCourse.id" :value="compCourse">{{ compCourse.name }}</option>
-            </select>
-            <PrimaryButton :disabled="newCompensation === ''" @click="addCompCourse(newCompensation)">Add Compensation
-            </PrimaryButton>
-            <table v-if="compCoursesSelected.length" class="mt-3">
+                <div class="flex flex-row items-center gap-2">
+                <select v-model="newCompensation"
+                    class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800">
+                    <option value="" disabled>--- Select a Compensation Class ---</option>
+                    <option v-for="compCourse in compCourses" :key="compCourse.id" :value="compCourse">{{ compCourse.name }}</option>
+                </select>
+                <PrimaryButton class="" :disabled="newCompensation === ''" @click="addCompCourse(newCompensation)">
+                    <PlusIcon class="w-4 h-4 mr-1" />
+                    Add Compensation
+                </PrimaryButton>
+            </div>
+            <table v-if="compCoursesSelected.length" class="mt-3 self-start">
                 <thead>
                     <tr>
-                        <th class="pr-5">Name</th>
-                        <th class="pr-5"></th>
-                        <th></th>
+                        <th class="px-2 text-left">Name</th>
+                        <th class="px-2"></th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr v-for="compCourseSelected in compCoursesSelected" :key="compCourseSelected.id">
-                        <td class="pr-5">{{ compCourseSelected.name }}</td>
-                        <td class="pr-5">
-                            <DangerButton @click="removeCompCourse(compCourseSelected)">Remove</DangerButton>
+                        <td class="px-2">
+                            <Link :href="route('courses.edit', compCourseSelected.id)" class="leading-none">
+                                {{ compCourseSelected.name }}
+                            </Link>
+                        </td>
+                        <td class="px-2">
+                            <DangerButton small @click="removeCompCourse(compCourseSelected)">Remove</DangerButton>
                         </td>
                     </tr>
                 </tbody>

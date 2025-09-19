@@ -149,12 +149,12 @@ class CourseController extends Controller
             'users:id,first_name,last_name,team_id',
         ])->get(['id', 'name']);
 
-        $compCourses = Course::all([
-            'id',
-            'name'
-        ]);
-
         $compCoursesSelected = $course->compensations;
+
+        // Get all courses except the current one and already selected compensations
+        $selectedCompensationIds = $compCoursesSelected->pluck('id')->toArray();
+        $compCourses = Course::whereNotIn('id', array_merge([$course->id], $selectedCompensationIds))
+            ->get(['id', 'name']);
 
         return Inertia::render('Course/Edit', [
             'course' => $course,
