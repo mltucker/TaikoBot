@@ -9,9 +9,10 @@ import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import DangerButton from '@/Components/DangerButton.vue';
 import DialogModal from '@/Components/DialogModal.vue';
+import Modal from '@/Components/Modal.vue';
 import { Link, useForm, router, usePage } from '@inertiajs/vue3';
 import { ref } from 'vue';
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps({ course: Object, teams: Object, compCourses: Array, compCoursesSelected: Array, teachers: Array });
 const page = usePage();
@@ -39,6 +40,9 @@ const newCompensation = ref("");
 
 const showTeacherModal = ref(false);
 const selectedLesson = ref(null);
+const showCloneModal = ref(false);
+const cloneLesson = ref(null);
+const cloneDate = ref('');
 
 const submit = () => {
     form.put(route("courses.update", props.course.id));
@@ -133,6 +137,62 @@ function closeModal() {
 function goBack() {
     window.history.back();
 }
+
+function openCloneModal(lesson) {
+    cloneLesson.value = lesson;
+
+    // Find the last lesson in the course
+    let lastLessonDate = new Date(lesson.start);
+    if (props.course.lessons && props.course.lessons.length > 0) {
+        // Sort lessons by start date and get the last one
+        const sortedLessons = [...props.course.lessons].sort((a, b) =>
+            new Date(b.start) - new Date(a.start)
+        );
+        lastLessonDate = new Date(sortedLessons[0].start);
+    }
+
+    // Set default date to one week after the last lesson
+    const defaultDate = new Date(lastLessonDate);
+    defaultDate.setDate(defaultDate.getDate() + 7);
+    cloneDate.value = defaultDate.toISOString().split('T')[0];
+
+    showCloneModal.value = true;
+}
+
+function performClone() {
+    if (!cloneLesson.value || !cloneDate.value) return;
+
+    router.post(route('lessons.clone', cloneLesson.value.id), {
+        date: cloneDate.value
+    }, {
+        preserveScroll: true,
+        onSuccess: () => {
+            showCloneModal.value = false;
+            cloneLesson.value = null;
+            cloneDate.value = '';
+        }
+    });
+}
+
+const dayNames = [
+    "Sun",
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+];
+
+function formatDate(d) {
+    d = new Date(d);
+    let [yyyy, mm, dd] = d.toISOString().slice(0, 10).split("-");
+    dd = parseInt(dd, 10).toString(); // trim leading "0"
+    mm = parseInt(mm, 10).toString();
+    const dayOfWeek = d.getDay();
+    return `${dayNames[dayOfWeek]} ${dd}.${mm}`;
+}
+
 </script>
 
 <template>
@@ -280,7 +340,7 @@ function goBack() {
         <!-- Compensations List -->
         <Box>
             <h1 class="font-semibold text-xl mb-2 mt-3">Compensation Possibilities</h1>
-                <div class="flex flex-row items-center gap-2">
+                <div class="flex flex-row items-center gap-2 flex-wrap">
                 <select v-model="newCompensation"
                     class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800">
                     <option value="" disabled>--- Select a Compensation Class ---</option>
@@ -329,7 +389,9 @@ function goBack() {
                 </thead>
                 <tbody>
                     <tr v-for="lesson in course.lessons">
-                        <td class="px-2 text-sm whitespace-nowrap" :class="new Date(lesson.finish) < Date.now() ? 'line-through pr-5' : 'pr-5'">{{ lesson.start.slice(0, 10) }}</td>
+                        <td class="px-2 text-sm whitespace-nowrap" :class="new Date(lesson.finish) < Date.now() ? 'line-through pr-5' : 'pr-5'">
+                            {{ formatDate(lesson.start) }}
+                        </td>
                         <td class="px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap" @click="page.props.auth.canEditCourses ? chooseTeacher(lesson) : null">
                             <span v-for="(teacher, index) in lesson.teachers" :key="teacher.id">
                                 {{ index === 0 ? '' : ', ' }}
@@ -344,11 +406,20 @@ function goBack() {
                             <div class="flex flex-row items-center gap-2">
                                 <!-- Edit Button -->
                                 <Link :href="route('lessons.edit', lesson.id)" class="leading-none">
-                                    <SecondaryButton small>Edit</SecondaryButton>
+                                    <SecondaryButton small>
+                                        <PencilSquareIcon class="w-4 h-4" />
+                                    </SecondaryButton>
                                 </Link>
 
+                                <!-- Clone Button -->
+                                <SecondaryButton small @click="openCloneModal(lesson)" title="Clone lesson">
+                                    <DocumentDuplicateIcon class="w-4 h-4" />
+                                </SecondaryButton>
+
                                 <!-- Delete Button -->
-                                <DangerButton small @click="destroyLesson(lesson.id)">Delete</DangerButton>
+                                <DangerButton small @click="destroyLesson(lesson.id)">
+                                    <TrashIcon class="w-4 h-4" />
+                                </DangerButton>
                             </div>
                         </td>
                     </tr>
@@ -453,5 +524,43 @@ function goBack() {
                 </SecondaryButton>
             </template>
         </DialogModal>
+
+        <!-- Clone Lesson Modal -->
+        <Modal :show="showCloneModal" @close="showCloneModal = false">
+            <div class="p-6">
+                <h3 class="text-lg font-semibold mb-4">Clone Lesson</h3>
+
+                <div v-if="cloneLesson">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                        Cloning: <strong>{{ cloneLesson.title }}</strong><br>
+                        Original date: {{ new Date(cloneLesson.start).toLocaleDateString() }}<br>
+                        Time: {{ new Date(cloneLesson.start).toLocaleTimeString() }} - {{ new Date(cloneLesson.finish).toLocaleTimeString() }}
+                    </p>
+
+                    <div class="mb-4">
+                        <InputLabel for="cloneDate" value="Select new date" />
+                        <TextInput
+                            id="cloneDate"
+                            v-model="cloneDate"
+                            type="date"
+                            class="mt-1 block w-full"
+                            required
+                        />
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            The lesson will be created on this date with the same time and duration
+                        </p>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <PrimaryButton @click="performClone" :disabled="!cloneDate">
+                            Clone Lesson
+                        </PrimaryButton>
+                        <SecondaryButton @click="showCloneModal = false">
+                            Cancel
+                        </SecondaryButton>
+                    </div>
+                </div>
+            </div>
+        </Modal>
     </AppLayout>
 </template>

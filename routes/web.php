@@ -87,6 +87,7 @@ Route::middleware([
     Route::post('lessons/{lesson}/set-excused', [LessonController::class, 'setExcused'])->name('lessons.setExcused');
     Route::post('lessons/{lesson}/set-late', [LessonController::class, 'setLate'])->name('lessons.setLate');
     Route::post('lessons/{lesson}/set-noshow', [LessonController::class, 'setNoShow'])->name('lessons.setNoShow');
+    Route::post('lessons/{lesson}/clone', [LessonController::class, 'clone'])->name('lessons.clone');
     Route::resource('lessons', LessonController::class);
 
     Route::put('/user/settings', [UserSettingsController::class, 'update'])->name('user-settings.update');

@@ -413,4 +413,52 @@ class LessonController extends Controller
             $nextInLine->notify(new LessonConfirmed($lesson));
         }
     }
+
+    /**
+     * Clone a lesson to a new date with the same time and details.
+     */
+    public function clone(Request $request, Lesson $lesson): RedirectResponse
+    {
+        Gate::authorize('edit-courses');
+
+        $validated = $request->validate([
+            'date' => 'required|date',
+        ]);
+
+        // Parse the new date and preserve the original time
+        $newDate = Carbon::parse($validated['date'], config('app.timezone_default'));
+        $originalStart = $lesson->start->inApplicationTz();
+        $originalFinish = $lesson->finish->inApplicationTz();
+
+        // Set the time from the original lesson
+        $newStart = $newDate->setTimeFromTimeString($originalStart->format('H:i:s'));
+        $newFinish = Carbon::parse($validated['date'], config('app.timezone_default'))
+            ->setTimeFromTimeString($originalFinish->format('H:i:s'));
+
+        // Create the new lesson
+        $newLesson = new Lesson();
+        $newLesson->course_id = $lesson->course_id;
+        $newLesson->title = $lesson->title;
+        $newLesson->start = $newStart->setTimezone('UTC');
+        $newLesson->finish = $newFinish->setTimezone('UTC');
+        $newLesson->notes = $lesson->notes;
+        $newLesson->save();
+
+        // Copy participants from the course
+        $course = $lesson->course;
+        $newLesson->participants()->attach($course->participants);
+
+        // Copy teachers from the original lesson
+        $teachers = $lesson->participants()
+            ->wherePivot('participation', LessonParticipationEnum::TEACHER->value)
+            ->get();
+
+        foreach ($teachers as $teacher) {
+            $newLesson->participants()->updateExistingPivot($teacher->id, [
+                'participation' => LessonParticipationEnum::TEACHER->value,
+            ]);
+        }
+
+        return back()->with('message', 'Lesson cloned successfully');
+    }
 }
