@@ -390,7 +390,9 @@ function formatDate(d) {
                 <tbody>
                     <tr v-for="lesson in course.lessons">
                         <td class="px-2 text-sm whitespace-nowrap" :class="new Date(lesson.finish) < Date.now() ? 'line-through pr-5' : 'pr-5'">
-                            {{ formatDate(lesson.start) }}
+                            <Link :href="route('lessons.show', lesson.id)" class="leading-none">
+                                {{ formatDate(lesson.start) }}
+                            </Link>
                         </td>
                         <td class="px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 whitespace-nowrap" @click="page.props.auth.canEditCourses ? chooseTeacher(lesson) : null">
                             <span v-for="(teacher, index) in lesson.teachers" :key="teacher.id">
